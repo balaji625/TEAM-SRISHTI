@@ -1,0 +1,25 @@
+# Netlify deployment config — CarePath AI
+# Place this file in the client/ folder (the directory Netlify builds from).
+
+[build]
+  # Directory containing the built output
+  publish = "dist"
+  # Vite build command
+  command = "npm run build"
+
+[build.environment]
+  # Point the production build directly at the Render backend.
+  # Override this in Netlify UI → Site Settings → Environment Variables if the
+  # backend URL ever changes, without touching source code.
+  VITE_API_URL = "https://ibm-backend-qwiw.onrender.com/api"
+  NODE_VERSION  = "20"
+
+# ── SPA redirect rule ─────────────────────────────────────────────────────────
+# React Router handles all client-side routes. Without this rule every hard
+# refresh (e.g. /dashboard, /login, /admin/*) returns a 404 from Netlify's CDN.
+# This rewrites ALL requests that don't match a real file to index.html so
+# React Router can take over.
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

@@ -1,0 +1,21 @@
+# Netlify deployment config — CarePath AI
+# This file MUST be at the repository root for Netlify to read it.
+
+[build]
+  # Netlify runs everything from the client/ subdirectory
+  base    = "client"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Backend deployed on Render — overridable via Netlify UI environment variables
+  VITE_API_URL = "https://ibm-backend-qwiw.onrender.com/api"
+  NODE_VERSION = "20"
+
+# ── SPA redirect rule ─────────────────────────────────────────────────────────
+# React Router manages all client-side routes.
+# Without this every hard refresh on /dashboard, /login, /admin/* → 404.
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

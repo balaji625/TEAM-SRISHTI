@@ -1,0 +1,3 @@
+// Controllers are added per stage.
+// Each controller imports its service and uses responseHelper.
+// Example: authController, userController, hospitalController, etc.
