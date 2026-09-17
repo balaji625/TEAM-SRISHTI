@@ -47,9 +47,9 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 // Add extra origins via CLIENT_URL_EXTRA (comma-separated) if needed.
 const ALLOWED_ORIGINS = [
   CLIENT_URL,
-  'https://genuine-peony-66b7a6.netlify.app',  // Netlify frontend (previous deploy)
-  'https://ibm-carepath-ecosystem.netlify.app',
-  'http://localhost:5173',                        // local Vite dev
+  'https://ibm-carepath-ecosystem.netlify.app', // Netlify frontend (current deploy)
+  'https://genuine-peony-66b7a6.netlify.app',   // Netlify frontend (previous deploy)
+  'http://localhost:5173',
   'http://localhost:4173',                        // local Vite preview
   ...(process.env.CLIENT_URL_EXTRA
     ? process.env.CLIENT_URL_EXTRA.split(',').map((u) => u.trim())
