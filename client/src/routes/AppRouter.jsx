@@ -81,7 +81,8 @@ import ProfessionalReferrals     from '../pages/professional/ProfessionalReferra
 // ── Expert pages ──────────────────────────────────────────────────────────────
 import ExpertDashboard, { ExpertSidebar } from '../pages/expert/ExpertDashboard';
 import ExpertProfile from '../pages/expert/ExpertProfile';
-import ExpertRequests from '../pages/expert/ExpertRequests';
+import ExpertRequests    from '../pages/expert/ExpertRequests';
+import ExpertEscalations from '../pages/expert/ExpertEscalations';
 import ExpertCredentials   from '../pages/expert/ExpertCredentials';
 import ExpertAvailability  from '../pages/expert/ExpertAvailability';
 import ExpertConsultations from '../pages/expert/ExpertConsultations';
@@ -242,7 +243,7 @@ const router = createBrowserRouter([
       { path: 'availability',  element: <ExpertAvailability /> },
       { path: 'requests',      element: <ExpertRequests /> },
       { path: 'consultations', element: <ExpertConsultations /> },
-      { path: 'escalations',   element: <ExpertRequests /> },
+      { path: 'escalations',   element: <ExpertEscalations /> },
       { path: 'notifications', element: <ExpertNotifications /> },
       { path: 'settings',      element: <ExpertSettings /> },
     ],

@@ -21,7 +21,7 @@ export const updateHealthProfile = (data) =>
 export const updateConsent = (data) =>
   api.put('/user/consent', data).then((r) => r.data);
 
-// ── Appointments ──────────────────────────────────────────────────────────────
+// ── Appointments (HSPL — hospital + professional, existing flow) ───────────────
 export const fetchAppointments = (params = {}) =>
   api.get('/user/appointments', { params }).then((r) => r.data);
 
@@ -33,6 +33,24 @@ export const fetchAppointment = (id) =>
 
 export const cancelAppointment = (id, reason) =>
   api.put(`/user/appointments/${id}/cancel`, { reason }).then((r) => r.data);
+
+// ── Expert Appointments (separate flow) ───────────────────────────────────────
+export const fetchExpertAppointments = (params = {}) =>
+  api.get('/user/expert-appointments', { params }).then((r) => r.data);
+
+export const bookExpertAppointment = (data) =>
+  api.post('/user/expert-appointments', data).then((r) => r.data);
+
+// ── Professional (direct) Appointments (separate flow) ────────────────────────
+export const fetchProfessionalAppointments = (params = {}) =>
+  api.get('/user/professional-appointments', { params }).then((r) => r.data);
+
+export const bookProfessionalAppointment = (data) =>
+  api.post('/user/professional-appointments', data).then((r) => r.data);
+
+// ── Search Experts ────────────────────────────────────────────────────────────
+export const searchExperts = (params = {}) =>
+  api.get('/search/experts', { params }).then((r) => r.data);
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 export const fetchNotifications = (params = {}) =>
@@ -99,3 +117,10 @@ export const fetchReferral = (id) =>
 
 export const cancelReferral = (id) =>
   api.put(`/user/referrals/${id}/cancel`).then((r) => r.data);
+
+// ── Expert Requests / Escalations (user → expert) ────────────────────────────
+export const fetchUserExpertRequests = (params = {}) =>
+  api.get('/user/expert-requests', { params }).then((r) => r.data);
+
+export const createUserExpertRequest = (expertId, description, priority) =>
+  api.post('/user/expert-requests', { expertId, description, priority }).then((r) => r.data);

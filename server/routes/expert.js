@@ -3,8 +3,13 @@
  *
  * All routes require a valid JWT (verifyToken) and EXPERT role.
  *
- * GET  /api/expert/profile  — fetch own expert profile
- * PUT  /api/expert/profile  — create or update expert profile
+ * GET  /api/expert/profile            — fetch own expert profile
+ * PUT  /api/expert/profile            — create or update expert profile
+ * GET  /api/expert/availability       — fetch own availability
+ * PUT  /api/expert/availability       — save own weekly availability
+ * GET  /api/expert/credentials        — list own credentials
+ * POST /api/expert/credentials        — add a credential (with optional file)
+ * DELETE /api/expert/credentials/:id  — remove a credential
  */
 
 'use strict';
@@ -15,6 +20,7 @@ const { body } = require('express-validator');
 const expertController = require('../controllers/expertController');
 const { verifyToken }  = require('../middleware/auth');
 const { requireRole }  = require('../middleware/rbac');
+const { credentialUpload } = require('../middleware/upload');
 const { ROLES, CONSULTATION_MODES } = require('../utils/constants');
 
 const router = express.Router();
@@ -63,16 +69,29 @@ const profileValidation = [
 ];
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-router.get('/profile', expertController.getProfile);
-router.put('/profile', profileValidation, expertController.upsertProfile);
+router.get('/profile',      expertController.getProfile);
+router.put('/profile',      profileValidation, expertController.upsertProfile);
+
+// ── Availability routes ────────────────────────────────────────────────────────
+router.get('/availability', expertController.getAvailability);
+router.put('/availability', expertController.saveAvailability);
+
+// ── Credential routes ──────────────────────────────────────────────────────────
+router.get('/credentials',            expertController.getCredentials);
+router.post('/credentials',           credentialUpload.single('document'), expertController.addCredential);
+router.delete('/credentials/:credId', expertController.deleteCredential);
 
 // ── Consultation routes ────────────────────────────────────────────────────────
-router.get('/consultations',                expertController.getConsultations);
-router.put('/consultations/:id/status',     expertController.updateConsultationStatus);
+router.get('/consultations',               expertController.getConsultations);
+router.put('/consultations/:id/status',    expertController.updateConsultationStatus);
 
-// ── Request routes ────────────────────────────────────────────────────────────
+// ── Request routes (outgoing — expert sends to hospital or admin) ─────────────
 router.get('/requests',              expertController.getMyRequests);
 router.post('/requests/to-hospital', expertController.sendRequestToHospital);
 router.post('/requests/to-admin',    expertController.sendRequestToAdmin);
+
+// ── Incoming request routes (from users directed at this expert) ───────────────
+router.get('/incoming-requests',          expertController.getIncomingRequests);
+router.put('/incoming-requests/:id',      expertController.updateIncomingRequest);
 
 module.exports = router;

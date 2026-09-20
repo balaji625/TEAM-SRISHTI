@@ -111,7 +111,7 @@ const healthProfileValidation = [
     .optional().trim(),
 ];
 
-// ── Validation: book appointment ──────────────────────────────────────────────
+// ── Validation: book HSPL appointment ────────────────────────────────────────
 const appointmentValidation = [
   body('date')
     .notEmpty().withMessage('Date is required')
@@ -141,6 +141,24 @@ const appointmentValidation = [
     .notEmpty().withMessage('Doctor/Professional selection is required'),
 ];
 
+// ── Validation: book Expert appointment ──────────────────────────────────────
+const expertAppointmentValidation = [
+  body('date').notEmpty().withMessage('Date is required').isISO8601().withMessage('Date must be a valid date').toDate(),
+  body('time').notEmpty().withMessage('Time is required').matches(/^([01]\d|2[0-3]):[0-5]\d$/).withMessage('Time must be in HH:MM format'),
+  body('reason').notEmpty().withMessage('Reason is required').trim().isLength({ max: 500 }).withMessage('Reason too long'),
+  body('expertId').notEmpty().withMessage('Expert selection is required'),
+  body('consultationType').optional().isIn(Object.values(CONSULTATION_MODES)).withMessage('Invalid consultation type'),
+];
+
+// ── Validation: book Professional (direct) appointment ───────────────────────
+const professionalAppointmentValidation = [
+  body('date').notEmpty().withMessage('Date is required').isISO8601().withMessage('Date must be a valid date').toDate(),
+  body('time').notEmpty().withMessage('Time is required').matches(/^([01]\d|2[0-3]):[0-5]\d$/).withMessage('Time must be in HH:MM format'),
+  body('reason').notEmpty().withMessage('Reason is required').trim().isLength({ max: 500 }).withMessage('Reason too long'),
+  body('professionalId').notEmpty().withMessage('Professional selection is required'),
+  body('consultationType').optional().isIn(Object.values(CONSULTATION_MODES)).withMessage('Invalid consultation type'),
+];
+
 // ── Validation: health record ─────────────────────────────────────────────────
 const healthRecordValidation = [
   body('recordType')
@@ -162,10 +180,19 @@ router.put('/health-profile', healthProfileValidation, userController.updateHeal
 router.put('/consent',        userController.updateConsent);
 
 // ── Appointment routes ─────────────────────────────────────────────────────────
-router.get('/appointments',           appointmentController.listUserAppointments);
-router.post('/appointments',          appointmentValidation, appointmentController.bookAppointment);
-router.get('/appointments/:id',       appointmentController.getUserAppointment);
-router.put('/appointments/:id/cancel', appointmentController.cancelAppointment);
+// HSPL (hospital + professional) appointments — existing flow untouched
+router.get('/appointments',                appointmentController.listUserAppointments);
+router.post('/appointments',               appointmentValidation, appointmentController.bookAppointment);
+router.get('/appointments/:id',            appointmentController.getUserAppointment);
+router.put('/appointments/:id/cancel',     appointmentController.cancelAppointment);
+
+// Expert appointments — completely separate flow
+router.get('/expert-appointments',         appointmentController.listExpertAppointments);
+router.post('/expert-appointments',        expertAppointmentValidation, appointmentController.bookExpertAppointment);
+
+// Professional (direct) appointments — completely separate flow
+router.get('/professional-appointments',   appointmentController.listProfessionalAppointments);
+router.post('/professional-appointments',  professionalAppointmentValidation, appointmentController.bookProfessionalAppointment);
 
 // ── Notification routes ────────────────────────────────────────────────────────
 router.get('/notifications',              notificationController.listNotifications);
@@ -191,5 +218,9 @@ router.get('/referrals',              referralController.listUserReferrals);
 router.post('/referrals',             referralController.createUserReferral);
 router.get('/referrals/:id',          referralController.getUserReferral);
 router.put('/referrals/:id/cancel',   referralController.cancelUserReferral);
+
+// ── Expert request / escalation routes (user → expert) ────────────────────────
+router.get('/expert-requests',        userController.getExpertRequests);
+router.post('/expert-requests',       userController.createExpertRequest);
 
 module.exports = router;

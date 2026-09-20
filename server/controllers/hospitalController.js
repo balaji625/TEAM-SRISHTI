@@ -150,8 +150,9 @@ const listDoctors = async (req, res, next) => {
 // ── POST /api/hospital/doctors/invite ────────────────────────────────────────
 // Hospital creates:
 //   1. A User account (role=PROFESSIONAL) with email as username and hospital name as password
-//   2. A Professional record linked to that User, with a pre-approved association
-// The doctor can immediately log in using: email + hospital name (as password)
+//   2. A Professional record linked to that User, with a PENDING association status
+//      (verificationStatus stays PENDING — admin must approve before doctor becomes active)
+// The doctor can log in using: email + hospital name (as password)
 const inviteDoctor = async (req, res, next) => {
   try {
     const errors = validationResult(req);
@@ -205,16 +206,16 @@ const inviteDoctor = async (req, res, next) => {
         }
         profProfile.hospitalAssociations.push({
           hospitalId: hospital._id,
-          status: 'APPROVED',
+          status: 'PENDING',
           requestedAt: new Date(),
-          resolvedAt: new Date(),
+          resolvedAt: null,
         });
         await profProfile.save();
         return success(res, {
           doctor: profProfile,
           loginEmail: normalizedEmail,
-          note: 'Existing account linked to your hospital.',
-        }, 'Doctor associated with your hospital', 200);
+          note: 'Existing account linked to your hospital — pending admin approval.',
+        }, 'Doctor association request sent — pending admin approval', 200);
       }
 
       // User exists but no Professional profile yet — create one
@@ -229,18 +230,19 @@ const inviteDoctor = async (req, res, next) => {
         licenseNumber: licenseNumber || undefined,
         bio:           bio || undefined,
         consultationModes: Array.isArray(consultationModes) ? consultationModes : [],
+        verificationStatus: 'PENDING',
         hospitalAssociations: [{
           hospitalId:  hospital._id,
-          status:      'APPROVED',
+          status:      'PENDING',
           requestedAt: new Date(),
-          resolvedAt:  new Date(),
+          resolvedAt:  null,
         }],
       });
       return success(res, {
         doctor,
         loginEmail: normalizedEmail,
-        note: 'Professional profile created for existing user account.',
-      }, 'Doctor added to your hospital', 201);
+        note: 'Professional profile created — pending admin approval before activation.',
+      }, 'Doctor added — pending admin approval', 201);
     }
 
     // ── Create brand-new User account ────────────────────────────────────────
@@ -259,7 +261,7 @@ const inviteDoctor = async (req, res, next) => {
       isActive:   true,
     });
 
-    // Create Professional profile linked to the new user
+    // Create Professional profile linked to the new user — PENDING until admin approves
     const doctor = await Professional.create({
       userId:        newUser._id,
       name:          name.trim(),
@@ -271,22 +273,24 @@ const inviteDoctor = async (req, res, next) => {
       licenseNumber: licenseNumber  || undefined,
       bio:           bio            || undefined,
       consultationModes: Array.isArray(consultationModes) ? consultationModes : [],
+      verificationStatus: 'PENDING',
       hospitalAssociations: [{
         hospitalId:  hospital._id,
-        status:      'APPROVED',
+        status:      'PENDING',
         requestedAt: new Date(),
-        resolvedAt:  new Date(),
+        resolvedAt:  null,
       }],
     });
 
     return success(res, {
       doctor,
+      pendingApproval: true,
       loginCredentials: {
         email:    normalizedEmail,
         password: rawPassword,
-        note:     'Doctor can login using their email and the hospital name as password. Ask them to change their password after first login.',
+        note:     'Doctor can login using their email and the hospital name as password. Doctor account is PENDING admin approval before they become active.',
       },
-    }, 'Doctor added to your hospital with a login account created', 201);
+    }, 'Doctor profile submitted — pending Admin/Founder approval', 201);
   } catch (err) {
     if (err.code === 11000) {
       return fail(res, 'A profile conflict occurred. The doctor may already be registered — ask them to request association directly.', 409);

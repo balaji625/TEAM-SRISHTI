@@ -45,7 +45,7 @@ const listUserAppointments = async (req, res, next) => {
   }
 };
 
-// ── USER: book appointment ────────────────────────────────────────────────────
+// ── USER: book HSPL appointment (hospital + professional required) ─────────────
 const bookAppointment = async (req, res, next) => {
   try {
     const errors = validationResult(req);
@@ -240,9 +240,156 @@ const updateAppointmentStatus = async (req, res, next) => {
   }
 };
 
+// ── USER: book Expert appointment (direct — no hospital required) ─────────────
+const bookExpertAppointment = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return fail(res, errors.array()[0].msg, 400,
+        errors.array().map((e) => ({ field: e.path, message: e.msg })));
+    }
+
+    const { Expert } = require('../models');
+    const { date, time, reason, consultationType, expertId, notes } = req.body;
+
+    if (!expertId) return fail(res, 'Expert selection is required', 400);
+
+    // Validate expert exists and is verified
+    const expert = await Expert.findOne({ _id: expertId, verificationStatus: 'VERIFIED', isActive: true });
+    if (!expert) return fail(res, 'Selected expert does not exist, is not verified, or is not active', 400);
+
+    const activeStatuses = [APPOINTMENT_STATUS.PENDING, APPOINTMENT_STATUS.CONFIRMED];
+    const conflict = await Appointment.findOne({
+      expertId,
+      date: new Date(date),
+      time,
+      status: { $in: activeStatuses },
+    });
+    if (conflict) {
+      return fail(res, 'This slot was just booked by another user. Please select another available slot.', 409);
+    }
+
+    try {
+      const appointment = await Appointment.create({
+        userId: req.user.sub,
+        date, time, reason,
+        consultationType: consultationType || 'IN_PERSON',
+        expertId,
+        hospitalId: null,
+        professionalId: null,
+        notes: notes || null,
+        statusHistory: [{ status: 'PENDING', changedBy: req.user.sub }],
+      });
+      return success(res, { appointment }, 'Expert appointment booked', 201);
+    } catch (createErr) {
+      if (createErr.code === 11000) {
+        return fail(res, 'This slot was just booked by another user. Please select another available slot.', 409);
+      }
+      throw createErr;
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── USER: book Professional appointment (direct — no hospital required) ────────
+const bookProfessionalAppointment = async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return fail(res, errors.array()[0].msg, 400,
+        errors.array().map((e) => ({ field: e.path, message: e.msg })));
+    }
+
+    const { date, time, reason, consultationType, professionalId, notes } = req.body;
+
+    if (!professionalId) return fail(res, 'Professional selection is required', 400);
+
+    // Validate professional exists and is verified
+    const professional = await Professional.findOne({ _id: professionalId, verificationStatus: 'VERIFIED', isActive: true });
+    if (!professional) return fail(res, 'Selected professional does not exist, is not verified, or is not active', 400);
+
+    const activeStatuses = [APPOINTMENT_STATUS.PENDING, APPOINTMENT_STATUS.CONFIRMED];
+    const conflict = await Appointment.findOne({
+      professionalId,
+      date: new Date(date),
+      time,
+      status: { $in: activeStatuses },
+    });
+    if (conflict) {
+      return fail(res, 'This slot was just booked by another user. Please select another available slot.', 409);
+    }
+
+    try {
+      const appointment = await Appointment.create({
+        userId: req.user.sub,
+        date, time, reason,
+        consultationType: consultationType || 'IN_PERSON',
+        professionalId,
+        hospitalId: null,
+        expertId: null,
+        notes: notes || null,
+        statusHistory: [{ status: 'PENDING', changedBy: req.user.sub }],
+      });
+      return success(res, { appointment }, 'Professional appointment booked', 201);
+    } catch (createErr) {
+      if (createErr.code === 11000) {
+        return fail(res, 'This slot was just booked by another user. Please select another available slot.', 409);
+      }
+      throw createErr;
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── USER: list Expert appointments only ───────────────────────────────────────
+const listExpertAppointments = async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const filter = { userId: req.user.sub, expertId: { $ne: null }, professionalId: null, hospitalId: null };
+    if (status) filter.status = status;
+
+    const appointments = await Appointment.find(filter)
+      .populate('expertId', 'name specialization')
+      .sort({ date: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    const total = await Appointment.countDocuments(filter);
+    return success(res, { appointments, total, page: Number(page) }, 'Expert appointments retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── USER: list Professional (direct) appointments only ────────────────────────
+const listProfessionalAppointments = async (req, res, next) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const filter = { userId: req.user.sub, professionalId: { $ne: null }, hospitalId: null };
+    if (status) filter.status = status;
+
+    const appointments = await Appointment.find(filter)
+      .populate('professionalId', 'name specialization')
+      .sort({ date: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    const total = await Appointment.countDocuments(filter);
+    return success(res, { appointments, total, page: Number(page) }, 'Professional appointments retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   listUserAppointments,
   bookAppointment,
+  bookExpertAppointment,
+  bookProfessionalAppointment,
+  listExpertAppointments,
+  listProfessionalAppointments,
   getUserAppointment,
   cancelAppointment,
   listHospitalAppointments,

@@ -238,14 +238,30 @@ const verifyProfessional = async (req, res, next) => {
     if (!['approve', 'reject'].includes(action)) {
       return fail(res, 'action must be "approve" or "reject"', 400);
     }
+    const newStatus = action === 'approve' ? VERIFICATION_STATUS.VERIFIED : VERIFICATION_STATUS.REJECTED;
     const update = {
-      verificationStatus: action === 'approve' ? VERIFICATION_STATUS.VERIFIED : VERIFICATION_STATUS.REJECTED,
+      verificationStatus: newStatus,
       verifiedBy: req.user.sub,
       verifiedAt: new Date(),
     };
     if (action === 'reject' && reason) update.rejectionReason = reason;
     const professional = await Professional.findByIdAndUpdate(id, update, { new: true });
     if (!professional) return next(new AppError('Professional not found', 404));
+
+    // If approving, also approve any PENDING hospital associations so doctor appears in hospital roster
+    if (action === 'approve') {
+      await Professional.updateOne(
+        { _id: id },
+        {
+          $set: {
+            'hospitalAssociations.$[elem].status': 'APPROVED',
+            'hospitalAssociations.$[elem].resolvedAt': new Date(),
+          },
+        },
+        { arrayFilters: [{ 'elem.status': 'PENDING' }] }
+      );
+    }
+
     return success(res, { professional }, `Professional ${action}d successfully`);
   } catch (err) {
     next(err);
@@ -643,12 +659,179 @@ const createHospital = async (req, res, next) => {
   }
 };
 
+// ── GET /api/admin/users/:id ──────────────────────────────────────────────────
+const getUser = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user) return next(new AppError('User not found', 404));
+    return success(res, { user }, 'User retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── PUT /api/admin/users/:id ──────────────────────────────────────────────────
+const updateUser = async (req, res, next) => {
+  try {
+    const allowed = ['name', 'phone', 'gender', 'dateOfBirth', 'language', 'isActive', 'isVerified'];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    const user = await User.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true, runValidators: true }).select('-password');
+    if (!user) return next(new AppError('User not found', 404));
+    return success(res, { user }, 'User updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── DELETE /api/admin/users/:id ───────────────────────────────────────────────
+const deleteUser = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return next(new AppError('User not found', 404));
+    if (user.role === 'ADMIN') return fail(res, 'Cannot delete admin accounts', 403);
+    await User.findByIdAndDelete(req.params.id);
+    return success(res, { _id: req.params.id }, 'User removed successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── GET /api/admin/professionals/:id ─────────────────────────────────────────
+const getProfessional = async (req, res, next) => {
+  try {
+    const professional = await Professional.findById(req.params.id).populate('userId', 'name email isActive isVerified');
+    if (!professional) return next(new AppError('Professional not found', 404));
+    return success(res, { professional }, 'Professional retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── PUT /api/admin/professionals/:id ─────────────────────────────────────────
+const updateProfessional = async (req, res, next) => {
+  try {
+    const allowed = ['name', 'email', 'phone', 'specialization', 'qualification', 'experience',
+      'licenseNumber', 'bio', 'consultationModes', 'isActive'];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    const professional = await Professional.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true, runValidators: true });
+    if (!professional) return next(new AppError('Professional not found', 404));
+    return success(res, { professional }, 'Professional updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── DELETE /api/admin/professionals/:id ───────────────────────────────────────
+const deleteProfessional = async (req, res, next) => {
+  try {
+    const professional = await Professional.findByIdAndDelete(req.params.id);
+    if (!professional) return next(new AppError('Professional not found', 404));
+    // Also deactivate the linked user account
+    if (professional.userId) {
+      await User.findByIdAndUpdate(professional.userId, { isActive: false });
+    }
+    return success(res, { _id: req.params.id }, 'Professional removed successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── GET /api/admin/experts/:id ────────────────────────────────────────────────
+const getExpert = async (req, res, next) => {
+  try {
+    const expert = await Expert.findById(req.params.id).populate('userId', 'name email isActive isVerified');
+    if (!expert) return next(new AppError('Expert not found', 404));
+    return success(res, { expert }, 'Expert retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── PUT /api/admin/experts/:id ────────────────────────────────────────────────
+const updateExpert = async (req, res, next) => {
+  try {
+    const allowed = ['name', 'email', 'phone', 'specialization', 'qualification', 'experience',
+      'bio', 'consultationModes', 'isActive'];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    const expert = await Expert.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true, runValidators: true });
+    if (!expert) return next(new AppError('Expert not found', 404));
+    return success(res, { expert }, 'Expert updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── DELETE /api/admin/experts/:id ─────────────────────────────────────────────
+const deleteExpert = async (req, res, next) => {
+  try {
+    const expert = await Expert.findByIdAndDelete(req.params.id);
+    if (!expert) return next(new AppError('Expert not found', 404));
+    if (expert.userId) {
+      await User.findByIdAndUpdate(expert.userId, { isActive: false });
+    }
+    return success(res, { _id: req.params.id }, 'Expert removed successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── GET /api/admin/hospitals/:id ──────────────────────────────────────────────
+const getHospital = async (req, res, next) => {
+  try {
+    const hospital = await Hospital.findById(req.params.id);
+    if (!hospital) return next(new AppError('Hospital not found', 404));
+    return success(res, { hospital }, 'Hospital retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── PUT /api/admin/hospitals/:id ──────────────────────────────────────────────
+const updateHospital = async (req, res, next) => {
+  try {
+    const allowed = ['name', 'email', 'phone', 'description', 'city', 'state', 'country',
+      'specialties', 'services', 'facilities', 'emergencyAvailable', 'isActive'];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    const hospital = await Hospital.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true, runValidators: true });
+    if (!hospital) return next(new AppError('Hospital not found', 404));
+    return success(res, { hospital }, 'Hospital updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── DELETE /api/admin/hospitals/:id ───────────────────────────────────────────
+const deleteHospital = async (req, res, next) => {
+  try {
+    const hospital = await Hospital.findByIdAndDelete(req.params.id);
+    if (!hospital) return next(new AppError('Hospital not found', 404));
+    if (hospital.createdBy) {
+      await User.findByIdAndUpdate(hospital.createdBy, { isActive: false });
+    }
+    return success(res, { _id: req.params.id }, 'Hospital removed successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getOverview,
-  listUsers, toggleUserActive,
-  listHospitals, getPendingHospitals,
-  listProfessionals, getPendingProfessionals,
-  listExperts, getPendingExperts,
+  listUsers, toggleUserActive, getUser, updateUser, deleteUser,
+  listHospitals, getPendingHospitals, getHospital, updateHospital, deleteHospital,
+  listProfessionals, getPendingProfessionals, getProfessional, updateProfessional, deleteProfessional,
+  listExperts, getPendingExperts, getExpert, updateExpert, deleteExpert,
   verifyHospital, verifyProfessional, verifyExpert,
   createExpert, createDoctor, createHospital,
   listAppointments,

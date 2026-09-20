@@ -13,6 +13,15 @@ export const fetchOverview = () =>
 export const fetchUsers = (params = {}) =>
   api.get('/admin/users', { params }).then((r) => r.data);
 
+export const fetchUserById = (id) =>
+  api.get(`/admin/users/${id}`).then((r) => r.data);
+
+export const updateUser = (id, data) =>
+  api.put(`/admin/users/${id}`, data).then((r) => r.data);
+
+export const deleteUser = (id) =>
+  api.delete(`/admin/users/${id}`).then((r) => r.data);
+
 export const toggleUserActive = (id) =>
   api.put(`/admin/users/${id}/toggle-active`).then((r) => r.data);
 
@@ -23,8 +32,17 @@ export const fetchHospitals = (params = {}) =>
 export const fetchPendingHospitals = () =>
   api.get('/admin/hospitals/pending').then((r) => r.data);
 
+export const fetchHospitalById = (id) =>
+  api.get(`/admin/hospitals/${id}`).then((r) => r.data);
+
 export const verifyHospital = (id, action, reason) =>
   api.put(`/admin/hospitals/${id}/verify`, { action, reason }).then((r) => r.data);
+
+export const updateHospital = (id, data) =>
+  api.put(`/admin/hospitals/${id}`, data).then((r) => r.data);
+
+export const deleteHospital = (id) =>
+  api.delete(`/admin/hospitals/${id}`).then((r) => r.data);
 
 export const createHospital = (data) =>
   api.post('/admin/hospitals/create', data).then((r) => r.data);
@@ -36,8 +54,20 @@ export const fetchProfessionals = (params = {}) =>
 export const fetchPendingProfessionals = () =>
   api.get('/admin/professionals/pending').then((r) => r.data);
 
+export const fetchProfessionalById = (id) =>
+  api.get(`/admin/professionals/${id}`).then((r) => r.data);
+
 export const verifyProfessional = (id, action, reason) =>
   api.put(`/admin/professionals/${id}/verify`, { action, reason }).then((r) => r.data);
+
+export const updateProfessional = (id, data) =>
+  api.put(`/admin/professionals/${id}`, data).then((r) => r.data);
+
+export const deleteProfessional = (id) =>
+  api.delete(`/admin/professionals/${id}`).then((r) => r.data);
+
+export const createDoctor = (data) =>
+  api.post('/admin/professionals/create', data).then((r) => r.data);
 
 // ── Experts ───────────────────────────────────────────────────────────────────
 export const fetchExperts = (params = {}) =>
@@ -46,14 +76,20 @@ export const fetchExperts = (params = {}) =>
 export const fetchPendingExperts = () =>
   api.get('/admin/experts/pending').then((r) => r.data);
 
+export const fetchExpertById = (id) =>
+  api.get(`/admin/experts/${id}`).then((r) => r.data);
+
 export const verifyExpert = (id, action, reason) =>
   api.put(`/admin/experts/${id}/verify`, { action, reason }).then((r) => r.data);
 
+export const updateExpert = (id, data) =>
+  api.put(`/admin/experts/${id}`, data).then((r) => r.data);
+
+export const deleteExpert = (id) =>
+  api.delete(`/admin/experts/${id}`).then((r) => r.data);
+
 export const createExpert = (data) =>
   api.post('/admin/experts/create', data).then((r) => r.data);
-
-export const createDoctor = (data) =>
-  api.post('/admin/professionals/create', data).then((r) => r.data);
 
 // ── Appointments ──────────────────────────────────────────────────────────────
 export const fetchAdminAppointments = (params = {}) =>

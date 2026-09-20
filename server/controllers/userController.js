@@ -14,7 +14,7 @@
 'use strict';
 
 const { validationResult } = require('express-validator');
-const { User }    = require('../models');
+const { User, Request, Expert }    = require('../models');
 const { success, fail } = require('../utils/responseHelper');
 const { AppError } = require('../middleware/errorHandler');
 
@@ -131,4 +131,62 @@ const updateConsent = async (req, res, next) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, updateHealthProfile, updateConsent };
+// ── GET /api/user/expert-requests ─────────────────────────────────────────────
+// User lists their own requests directed at experts
+const getExpertRequests = async (req, res, next) => {
+  try {
+    const { status } = req.query;
+    const filter = { userId: req.user.sub, expertId: { $ne: null } };
+    if (status) filter.status = status.toUpperCase();
+
+    const requests = await Request.find(filter)
+      .populate('expertId', 'name specialization')
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    return success(res, { requests, total: requests.length }, 'Expert requests retrieved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── POST /api/user/expert-requests ────────────────────────────────────────────
+// User creates a new request/escalation directed at a specific expert
+const createExpertRequest = async (req, res, next) => {
+  try {
+    const { expertId, description, priority } = req.body;
+
+    if (!expertId || !description?.trim()) {
+      return fail(res, 'expertId and description are required', 400);
+    }
+
+    // Validate expert exists and is verified
+    const expert = await Expert.findOne({ _id: expertId, verificationStatus: 'VERIFIED', isActive: true });
+    if (!expert) return fail(res, 'Expert not found or not available', 404);
+
+    // Prevent duplicate pending requests to the same expert
+    const existing = await Request.findOne({
+      userId:    req.user.sub,
+      expertId:  expert._id,
+      status:    'PENDING',
+      requestType: 'EXPERT_ESCALATION',
+    });
+    if (existing) {
+      return fail(res, 'You already have a pending request with this expert', 409);
+    }
+
+    const request = await Request.create({
+      userId:      req.user.sub,
+      expertId:    expert._id,
+      requestType: 'EXPERT_ESCALATION',
+      description: description.trim(),
+      priority:    priority || 'NORMAL',
+    });
+
+    return success(res, { request }, 'Request sent to expert', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getProfile, updateProfile, updateHealthProfile, updateConsent, getExpertRequests, createExpertRequest };

@@ -10,8 +10,9 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Building2, Search, RefreshCw, Loader2, AlertCircle,
   CheckCircle, XCircle, Clock, Plus, Eye, EyeOff, X,
+  Pencil, Trash2, User,
 } from 'lucide-react';
-import { fetchHospitals, verifyHospital, createHospital } from '../../services/adminService';
+import { fetchHospitals, verifyHospital, createHospital, fetchHospitalById, updateHospital, deleteHospital } from '../../services/adminService';
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 const statusColor = {
@@ -270,6 +271,150 @@ const RejectModal = ({ hospId, onCancel, onConfirm, busy }) => {
   );
 };
 
+// ── View Hospital Modal ───────────────────────────────────────────────────────
+const ViewHospitalModal = ({ hospId, onClose }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchHospitalById(hospId).then((r) => setData(r.data?.hospital)).catch(() => {}).finally(() => setLoading(false));
+    const h = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [hospId, onClose]);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+          <h2 className="text-base font-bold text-gray-900">Hospital Profile</h2>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-5">
+          {loading && <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-rose-500" /></div>}
+          {data && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div><p className="text-xs text-gray-400">Hospital Name</p><p className="text-sm font-medium text-gray-900">{data.name}</p></div>
+                <div><p className="text-xs text-gray-400">Email</p><p className="text-sm text-gray-700">{data.email || '—'}</p></div>
+                <div><p className="text-xs text-gray-400">Phone</p><p className="text-sm text-gray-700">{data.phone || '—'}</p></div>
+                <div><p className="text-xs text-gray-400">Emergency</p><p className="text-sm text-gray-700">{data.emergencyAvailable ? '24/7 Available' : 'Not Available'}</p></div>
+                <div><p className="text-xs text-gray-400">City</p><p className="text-sm text-gray-700">{data.city || '—'}</p></div>
+                <div><p className="text-xs text-gray-400">Country</p><p className="text-sm text-gray-700">{data.country || '—'}</p></div>
+                <div>
+                  <p className="text-xs text-gray-400">Verification Status</p>
+                  <StatusBadge status={data.verificationStatus} />
+                </div>
+                <div><p className="text-xs text-gray-400">Registered</p><p className="text-sm text-gray-700">{new Date(data.createdAt).toLocaleDateString()}</p></div>
+              </div>
+              {data.description && (
+                <div className="border-t pt-4">
+                  <p className="text-xs text-gray-400 mb-1">Description</p>
+                  <p className="text-sm text-gray-700">{data.description}</p>
+                </div>
+              )}
+              {data.specialties?.length > 0 && (
+                <div className="border-t pt-4">
+                  <p className="text-xs text-gray-400 mb-2">Specialties</p>
+                  <div className="flex flex-wrap gap-1">{data.specialties.map((s, i) => <span key={i} className="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">{s}</span>)}</div>
+                </div>
+              )}
+              {data.services?.length > 0 && (
+                <div className="border-t pt-4">
+                  <p className="text-xs text-gray-400 mb-2">Services</p>
+                  <div className="flex flex-wrap gap-1">{data.services.map((s, i) => <span key={i} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200">{s}</span>)}</div>
+                </div>
+              )}
+              {data.facilities?.length > 0 && (
+                <div className="border-t pt-4">
+                  <p className="text-xs text-gray-400 mb-2">Facilities</p>
+                  <div className="flex flex-wrap gap-1">{data.facilities.map((f, i) => <span key={i} className="text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded-full border border-gray-200">{f}</span>)}</div>
+                </div>
+              )}
+              {data.rejectionReason && (
+                <div className="border-t pt-4">
+                  <p className="text-xs text-gray-400 mb-1">Rejection Reason</p>
+                  <p className="text-sm text-red-600">{data.rejectionReason}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-end shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Edit Hospital Modal ───────────────────────────────────────────────────────
+const EditHospitalModal = ({ hosp, onClose, onUpdated }) => {
+  const [form, setForm] = useState({ name: hosp.name || '', email: hosp.email || '', phone: hosp.phone || '', description: hosp.description || '', city: hosp.city || '', state: hosp.state || '', country: hosp.country || '', emergencyAvailable: hosp.emergencyAvailable || false, isActive: hosp.isActive !== false });
+  const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState('');
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true); setApiError('');
+    try {
+      await updateHospital(hosp._id, form);
+      onUpdated();
+    } catch (err) {
+      setApiError(err.response?.data?.message || 'Update failed');
+    } finally { setSaving(false); }
+  };
+
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+          <h2 className="text-base font-bold text-gray-900">Edit Hospital — {hosp.name}</h2>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
+          {apiError && <div className="flex gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {apiError}</div>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label className="block text-xs font-medium text-gray-700 mb-1">Hospital Name</label><input value={form.name} onChange={set('name')} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" /></div>
+            <div><label className="block text-xs font-medium text-gray-700 mb-1">Email</label><input type="email" value={form.email} onChange={set('email')} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" /></div>
+            <div><label className="block text-xs font-medium text-gray-700 mb-1">Phone</label><input value={form.phone} onChange={set('phone')} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" /></div>
+            <div><label className="block text-xs font-medium text-gray-700 mb-1">City</label><input value={form.city} onChange={set('city')} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" /></div>
+            <div><label className="block text-xs font-medium text-gray-700 mb-1">State</label><input value={form.state} onChange={set('state')} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" /></div>
+            <div><label className="block text-xs font-medium text-gray-700 mb-1">Country</label><input value={form.country} onChange={set('country')} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400" /></div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Active</label>
+              <select value={form.isActive ? 'true' : 'false'} onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.value === 'true' }))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+          </div>
+          <div><label className="block text-xs font-medium text-gray-700 mb-1">Description</label><textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={3} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 resize-none" /></div>
+          <div className="flex items-center gap-3">
+            <input type="checkbox" id="edit-emergency" checked={form.emergencyAvailable} onChange={(e) => setForm((f) => ({ ...f, emergencyAvailable: e.target.checked }))} className="w-4 h-4 rounded border-gray-300 accent-rose-600" />
+            <label htmlFor="edit-emergency" className="text-sm text-gray-700 cursor-pointer">24/7 Emergency Services Available</label>
+          </div>
+        </form>
+        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3 shrink-0">
+          <button type="button" onClick={onClose} disabled={saving} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+          <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 const AdminHospitals = () => {
   const [hospitals, setHospitals]   = useState([]);
@@ -283,6 +428,9 @@ const AdminHospitals = () => {
   const [rejectTarget, setReject]   = useState(null);
   const [showAddModal, setShowAdd]  = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [viewId, setViewId]         = useState(null);
+  const [editItem, setEditItem]     = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -317,10 +465,31 @@ const AdminHospitals = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    setBusyId(id);
+    try {
+      await deleteHospital(id);
+      setHospitals((prev) => prev.filter((h) => h._id !== id));
+      setTotal((t) => t - 1);
+      setDeleteTarget(null);
+      setSuccessMsg('Hospital removed.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Delete failed');
+    } finally { setBusyId(null); }
+  };
+
   const handleCreated = (data) => {
     setShowAdd(false);
-    setSuccessMsg(`Hospital "${data.hospital?.name}" created successfully. They can log in with their credentials.`);
+    setSuccessMsg(`Hospital "${data.hospital?.name}" created successfully.`);
     setTimeout(() => setSuccessMsg(''), 6000);
+    load();
+  };
+
+  const handleUpdated = () => {
+    setEditItem(null);
+    setSuccessMsg('Hospital updated successfully.');
+    setTimeout(() => setSuccessMsg(''), 4000);
     load();
   };
 
@@ -417,27 +586,33 @@ const AdminHospitals = () => {
                   <td className="px-4 py-3"><StatusBadge status={h.verificationStatus} /></td>
                   <td className="px-4 py-3 text-xs text-gray-400">{new Date(h.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-right">
-                    {h.verificationStatus === 'PENDING' && (
-                      <div className="flex items-center justify-end gap-1.5">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => setViewId(h._id)} title="View profile" className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"><User className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setEditItem(h)} title="Edit" className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                      {h.verificationStatus === 'PENDING' && (
+                        <>
+                          <button disabled={busyId === h._id} onClick={() => handleVerify(h._id, 'approve')}
+                            className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-md font-medium disabled:opacity-50">
+                            {busyId === h._id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />} Approve
+                          </button>
+                          <button onClick={() => setReject(h._id)} className="flex items-center gap-1 text-xs text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-1 rounded-md font-medium">
+                            <XCircle className="w-3 h-3" /> Reject
+                          </button>
+                        </>
+                      )}
+                      {h.verificationStatus === 'VERIFIED' && (
+                        <button onClick={() => setReject(h._id)} className="flex items-center gap-1 text-xs text-gray-500 bg-gray-50 hover:bg-gray-100 border border-gray-200 px-2 py-1 rounded-md font-medium">
+                          <XCircle className="w-3 h-3" /> Revoke
+                        </button>
+                      )}
+                      {h.verificationStatus === 'REJECTED' && (
                         <button disabled={busyId === h._id} onClick={() => handleVerify(h._id, 'approve')}
-                          className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-md font-medium transition-colors disabled:opacity-50">
-                          {busyId === h._id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />} Approve
+                          className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-md font-medium disabled:opacity-50">
+                          Re-approve
                         </button>
-                        <button onClick={() => setReject(h._id)}
-                          className="flex items-center gap-1 text-xs text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-1 rounded-md font-medium transition-colors">
-                          <XCircle className="w-3 h-3" /> Reject
-                        </button>
-                      </div>
-                    )}
-                    {h.verificationStatus === 'VERIFIED' && (
-                      <span className="text-xs text-gray-400 italic">Verified</span>
-                    )}
-                    {h.verificationStatus === 'REJECTED' && (
-                      <button disabled={busyId === h._id} onClick={() => handleVerify(h._id, 'approve')}
-                        className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-md font-medium disabled:opacity-50">
-                        Re-approve
-                      </button>
-                    )}
+                      )}
+                      <button onClick={() => setDeleteTarget(h)} title="Remove" className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -459,24 +634,26 @@ const AdminHospitals = () => {
         </div>
       )}
 
-      {/* Add Hospital modal */}
-      {showAddModal && (
-        <AddHospitalModal
-          onClose={() => setShowAdd(false)}
-          onCreated={handleCreated}
-        />
-      )}
+      {showAddModal && <AddHospitalModal onClose={() => setShowAdd(false)} onCreated={handleCreated} />}
+      {rejectTarget && <RejectModal hospId={rejectTarget} onCancel={() => setReject(null)} onConfirm={handleVerify} busy={busyId === rejectTarget} />}
+      {viewId && <ViewHospitalModal hospId={viewId} onClose={() => setViewId(null)} />}
+      {editItem && <EditHospitalModal hosp={editItem} onClose={() => setEditItem(null)} onUpdated={handleUpdated} />}
 
-      {/* Reject modal */}
-      {rejectTarget && (
-        <RejectModal
-          hospId={rejectTarget}
-          onCancel={() => setReject(null)}
-          onConfirm={handleVerify}
-          busy={busyId === rejectTarget}
-        />
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Remove Hospital</h3>
+            <p className="text-sm text-gray-600 mb-4">Are you sure you want to remove <strong>{deleteTarget.name}</strong>? This will also deactivate their user account.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteTarget(null)} className="flex-1 border border-gray-200 rounded-lg py-2 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button onClick={() => handleDelete(deleteTarget._id)} disabled={busyId === deleteTarget._id}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg py-2 text-sm font-medium disabled:opacity-50">
+                {busyId === deleteTarget._id ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Remove'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-
     </div>
   );
 };

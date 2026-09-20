@@ -49,6 +49,7 @@ const ALLOWED_ORIGINS = [
   CLIENT_URL,
   'https://ibm-carepath-ecosystem.netlify.app', // Netlify frontend (current deploy)
   'https://genuine-peony-66b7a6.netlify.app',   // Netlify frontend (previous deploy)
+  'https://ibm-carebridge.netlify.app' ,
   'http://localhost:5173',
   'http://localhost:4173',                        // local Vite preview
   ...(process.env.CLIENT_URL_EXTRA

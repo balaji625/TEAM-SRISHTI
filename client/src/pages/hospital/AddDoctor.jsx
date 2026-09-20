@@ -142,15 +142,26 @@ const AddDoctor = () => {
         <Link to="/hospital/doctors" className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900">
           <ArrowLeft className="w-4 h-4" /> Back to Doctors
         </Link>
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-8 text-center">
-          <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Doctor Added Successfully</h2>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center">
+          <CheckCircle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Doctor Profile Submitted</h2>
           <p className="text-sm text-gray-600 mb-4">
-            A CarePath AI Professional account has been created for this doctor.
+            The doctor profile has been submitted and is <strong>pending Admin/Founder approval</strong>. The doctor will become active only after admin verifies and approves their profile.
           </p>
+          <div className="bg-white border border-amber-200 rounded-lg p-4 text-left mb-4">
+            <p className="text-xs font-semibold text-amber-800 mb-2 uppercase tracking-wide flex items-center gap-1.5">
+              <Info className="w-3.5 h-3.5" /> What happens next?
+            </p>
+            <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
+              <li>The doctor profile is now visible to Admin/Founder for review.</li>
+              <li>Admin will review the profile, qualifications, and documents.</li>
+              <li>Once approved, the doctor becomes active and can accept appointments.</li>
+              <li>If rejected, you will be notified to resubmit with corrections.</li>
+            </ul>
+          </div>
           {createdCreds && (
-            <div className="bg-white border border-emerald-200 rounded-lg p-4 text-left mb-4">
-              <p className="text-xs font-semibold text-emerald-800 mb-2 uppercase tracking-wide">🔑 Login Credentials (share with doctor)</p>
+            <div className="bg-white border border-amber-200 rounded-lg p-4 text-left mb-4">
+              <p className="text-xs font-semibold text-amber-800 mb-2 uppercase tracking-wide">🔑 Login Credentials (share with doctor)</p>
               <div className="space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Email:</span>
@@ -162,12 +173,12 @@ const AddDoctor = () => {
                 </div>
               </div>
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1.5 mt-3">
-                ⚠️ Password is the hospital name. Ask the doctor to change it after first login.
+                ⚠️ Password is the hospital name. Doctor can log in but account is inactive until admin approves.
               </p>
             </div>
           )}
           <p className="text-xs text-gray-500 mb-4">
-            The doctor can log in at <strong>CarePath AI → Healthcare Professional</strong> using the credentials above.
+            The doctor can log in at <strong>CarePath AI → Healthcare Professional</strong> once their account is approved by the admin.
           </p>
 
           {/* Certificate upload */}
@@ -211,7 +222,7 @@ const AddDoctor = () => {
               Add Another
             </button>
             <Link to="/hospital/doctors"
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors">
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors">
               View Doctors
             </Link>
           </div>
