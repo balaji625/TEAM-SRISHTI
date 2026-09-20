@@ -9,7 +9,7 @@
 
 [build.environment]
   # Backend deployed on Render — overridable via Netlify UI environment variables
-  VITE_API_URL = "https://team-srishti.onrender.com/api"
+  VITE_API_URL = "https://team-srishti-final.onrender.com/api"
   NODE_VERSION = "20"
 
 # ── SPA redirect rule ─────────────────────────────────────────────────────────
